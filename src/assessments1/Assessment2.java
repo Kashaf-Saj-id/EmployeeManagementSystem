@@ -1,11 +1,11 @@
 package assessments1;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.sql.*;
-import java.time.LocalDate;
-import java.util.Properties;
-import java.util.Scanner;
+import java.io.FileInputStream;     //To read the property files
+import java.io.IOException;         //To handle input and output exceptions
+import java.sql.*;                  //for database operations
+import java.time.LocalDate;         //To handle dates
+import java.util.Properties;         //to load and use rules from property files
+import java.util.Scanner;             //for user input
 
 public class Assessment2 {
     private static Properties properties = new Properties();
@@ -24,7 +24,7 @@ public class Assessment2 {
         Employee e1 = new Employee();
         Scanner scanner = new Scanner(System.in);
 
-        // Collect Employee Data
+
         String name = getValidatedString(scanner, "Enter Your name: ");
         e1.setName(name);
 
@@ -52,17 +52,19 @@ public class Assessment2 {
         String country = getValidatedString(scanner, "Enter Your Country: ");
         e1.getAddress().setCountry(country);
 
-        // Show available departments and get the user's choice
         showDepartments();
+
+
         int departmentId = getValidatedDepartmentId(scanner, "Enter the department ID for the employee: ");
 
-        // Save Employee, Address, and Department to Database
+
         saveEmployeeToDatabase(e1, departmentId);
 
-        // Retrieve and Display All Employees
         System.out.println("\nFetching all employees from the database:");
         fetchEmployeesFromDatabase();
     }
+
+
 
     // Validation Methods
 
@@ -153,6 +155,7 @@ public class Assessment2 {
         return phone;
     }
 
+
     public static String getValidatedDateOfBirth(Scanner scanner, String prompt) {
         String dateOfBirth = "";
         boolean valid = false;
@@ -189,16 +192,16 @@ public class Assessment2 {
 
 
 
+
     public static int getValidatedDepartmentId(Scanner scanner, String prompt) {
-        // Fetch departments into simple arrays
-        int[] departmentIds = new int[10];
+        int[] departmentIds = new int[10];     //To store departments id fetched from database
         String[] departmentNames = new String[10];
-        int index = 0;
+        int index = 0;               //To track how many departments are fetched
 
         String query = "SELECT id, name FROM Department ORDER BY id ASC";
-        try (Connection connection = DatabaseUtil.getConnection();
-             Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(query)) {
+        try (Connection connection = DatabaseUtil.getConnection();      // Opens the connection
+             Statement statement = connection.createStatement();      // Used to execute SQL query
+             ResultSet resultSet = statement.executeQuery(query)) {      //Contains the result of executed query
 
             System.out.println("Available Departments:");
             while (resultSet.next()) {
@@ -219,7 +222,7 @@ public class Assessment2 {
             System.out.println(prompt);
             try {
                 departmentId = Integer.parseInt(scanner.nextLine().trim());
-                // Check if the entered ID is in the array
+
                 for (int i = 0; i < index; i++) {
                     if (departmentIds[i] == departmentId) {
                         valid = true;
@@ -259,9 +262,8 @@ public class Assessment2 {
     }
 
     public static void saveEmployeeToDatabase(Employee employee, int departmentId) {
-        String insertEmployeeQuery = "INSERT INTO Employee (name, email, phone, dob, salary) VALUES (?, ?, ?, ?, ?)";
+        String insertEmployeeQuery = "INSERT INTO Employee (name, email, phone, dob, salary, department_id) VALUES (?, ?, ?, ?, ?, ?)";
         String insertAddressQuery = "INSERT INTO Address (employee_id, house_no, area, city, country) VALUES (?, ?, ?, ?, ?)";
-        String insertEmployeeDepartmentQuery = "INSERT INTO Employee_Department (employee_id, department_id) VALUES (?, ?)";
 
         try (Connection connection = DatabaseUtil.getConnection()) {
             try (PreparedStatement employeeStmt = connection.prepareStatement(insertEmployeeQuery, Statement.RETURN_GENERATED_KEYS)) {
@@ -270,7 +272,8 @@ public class Assessment2 {
                 employeeStmt.setString(3, employee.getPhone());
                 employeeStmt.setDate(4, java.sql.Date.valueOf(employee.getDob())); // Directly saving as SQL date
                 employeeStmt.setDouble(5, employee.getSalary());
-                employeeStmt.executeUpdate();
+                employeeStmt.setInt(6, departmentId); // Save department_id directly in Employee table
+                employeeStmt.executeUpdate();   // execute statement to add employee to employee table
 
                 ResultSet generatedKeys = employeeStmt.getGeneratedKeys();
                 if (generatedKeys.next()) {
@@ -284,12 +287,6 @@ public class Assessment2 {
                         addressStmt.setString(5, employee.getAddress().getCountry());
                         addressStmt.executeUpdate();
                     }
-
-                    try (PreparedStatement employeeDeptStmt = connection.prepareStatement(insertEmployeeDepartmentQuery)) {
-                        employeeDeptStmt.setInt(1, employeeId);
-                        employeeDeptStmt.setInt(2, departmentId);
-                        employeeDeptStmt.executeUpdate();
-                    }
                 }
             }
         } catch (SQLException e) {
@@ -299,17 +296,15 @@ public class Assessment2 {
 
 
 
-
     public static void fetchEmployeesFromDatabase() {
         String query = """
-        SELECT e.id, e.name, e.email, e.phone, e.dob, e.salary,
-               a.house_no, a.area, a.city, a.country, d.name AS department
-        FROM Employee e
-        JOIN Address a ON e.id = a.employee_id
-        JOIN Employee_Department ed ON e.id = ed.employee_id
-        JOIN Department d ON ed.department_id = d.id
-        ORDER BY e.id ASC; -- Ensure consistent order
-        """;
+    SELECT e.id, e.name, e.email, e.phone, e.dob, e.salary,
+           a.house_no, a.area, a.city, a.country, d.name AS department
+    FROM Employee e
+    JOIN Address a ON e.id = a.employee_id
+    JOIN Department d ON e.department_id = d.id
+    ORDER BY e.id ASC;
+    """;
 
         try (Connection connection = DatabaseUtil.getConnection();
              Statement statement = connection.createStatement();
@@ -330,16 +325,16 @@ public class Assessment2 {
                 String department = resultSet.getString("department");
 
                 System.out.printf("""
-                Employee ID: %d
-                Name: %s
-                Email: %s
-                Phone: %s
-                DOB: %s
-                Salary: %.2f
-                Address: House no %d, %s, %s, %s
-                Department: %s
-                -----------------------------------
-                """, id, name, email, phone, dob, salary, houseNo, area, city, country, department);
+            Employee ID: %d
+            Name: %s
+            Email: %s
+            Phone: %s
+            DOB: %s
+            Salary: %.2f
+            Address: House no %d, %s, %s, %s
+            Department: %s
+            -----------------------------------
+            """, id, name, email, phone, dob, salary, houseNo, area, city, country, department);
             }
         } catch (SQLException e) {
             System.out.println("Error fetching employees from the database: " + e.getMessage());
@@ -349,5 +344,4 @@ public class Assessment2 {
 }
 
 
-//----DATABASE TEST
 
