@@ -65,23 +65,22 @@ public class Assessment2 {
         employee.setAddresses(addresses);
 
         // Get departments and role/position for employee
-        List<Integer> departmentIds = new ArrayList<>();
-        List<String> roles = new ArrayList<>();
-        List<String> heads = new ArrayList<>();
+        List<Department> departments = new ArrayList<>();
         boolean addMoreDepartments = true;
 
         // Fetch available department IDs
-        List<Integer> validDepartmentIds = showDepartments();
+        List<Department> validDepartments = showDepartments();
 
         while (addMoreDepartments) {
             // Ask user to select a valid department
-            int departmentId = getValidatedDepartmentId(scanner, "Enter the department ID for the employee: ", validDepartmentIds);
+            Department selectedDepartment = getValidatedDepartment(scanner, "Enter the department ID for the employee: ", validDepartments);
             String role = getValidatedString(scanner, "Enter your role in this department: ");
             String head = getValidatedString(scanner, "Enter the head of this department: ");
 
-            departmentIds.add(departmentId);
-            roles.add(role);
-            heads.add(head);
+            selectedDepartment.setRole(role);
+            selectedDepartment.setHead(head);
+
+            departments.add(selectedDepartment);
 
             // Ask if the user wants to add another department
             boolean validChoice = false;
@@ -99,8 +98,11 @@ public class Assessment2 {
             }
         }
 
+        // Set the employee's departments
+        employee.setDepartments(departments);
+
         // Save employee with department assignments, including role and head
-        saveEmployeeToDatabase(employee, departmentIds, roles, heads, addresses);
+        saveEmployeeToDatabase(employee, departments, addresses);
 
         // Fetch and display all employees with their addresses (same as before)
         System.out.println("\nFetching all employees from the database:");
@@ -109,9 +111,10 @@ public class Assessment2 {
 
 
 
+
     // Show departments to the user
-    public static List<Integer> showDepartments() {
-        List<Integer> departmentIds = new ArrayList<>();
+    public static List<Department> showDepartments() {
+        List<Department> departments = new ArrayList<>();
         String query = "SELECT id, name FROM Department ORDER BY id ASC";
         try (Connection connection = DatabaseUtil.getConnection();
              Statement stmt = connection.createStatement();
@@ -122,20 +125,22 @@ public class Assessment2 {
             while (rs.next()) {
                 int id = rs.getInt("id");
                 String name = rs.getString("name");
-                departmentIds.add(id);  // Add department ID to the list
+                Department department = new Department();
+                department.setId(id);
+                department.setName(name);
+                departments.add(department);  // Add department object to the list
                 System.out.println(count + ". " + name);  // Display department number followed by name
                 count++;
             }
         } catch (SQLException e) {
             System.out.println("Error fetching departments: " + e.getMessage());
         }
-        return departmentIds;  // Return the list of department IDs
+        return departments;  // Return the list of department objects
     }
 
 
-
     // Get validated department ID from the user
-    public static int getValidatedDepartmentId(Scanner scanner, String prompt, List<Integer> validDepartmentIds) {
+    public static Department getValidatedDepartment(Scanner scanner, String prompt, List<Department> validDepartments) {
         int departmentId = -1;
         boolean valid = false;
         while (!valid) {
@@ -143,18 +148,21 @@ public class Assessment2 {
             try {
                 departmentId = Integer.parseInt(scanner.nextLine().trim());
 
-                // Check if the entered department ID is valid
-                if (!validDepartmentIds.contains(departmentId)) {
-                    System.out.println("Invalid department ID. Please enter a valid department ID.");
-                } else {
-                    valid = true;  // Valid department ID
+                // Find the department object with the given ID
+                for (Department dept : validDepartments) {
+                    if (dept.getId() == departmentId) {
+                        valid = true;
+                        return dept;  // Return the department object
+                    }
                 }
+                System.out.println("Invalid department ID. Please enter a valid department ID.");
             } catch (NumberFormatException e) {
                 System.out.println("Invalid input. Please enter a valid department ID.");
             }
         }
-        return departmentId;
+        return null;  // This line should never be reached
     }
+
 
 
     public static int getValidatedInt(Scanner scanner, String prompt) {
@@ -272,7 +280,7 @@ public class Assessment2 {
     }
 
     // Save employee to the database (including role and head in EmployeeDepartment)
-    public static void saveEmployeeToDatabase(Employee employee, List<Integer> departmentIds, List<String> roles, List<String> heads, List<Address> addresses) {
+    public static void saveEmployeeToDatabase(Employee employee, List<Department> departments, List<Address> addresses) {
         String insertEmployeeQuery = "INSERT INTO Employee (name, email, phone, dob, salary) VALUES (?, ?, ?, ?, ?)";
         String insertEmployeeDepartmentQuery = "INSERT INTO EmployeeDepartment (employee_id, department_id, role, head) VALUES (?, ?, ?, ?)";
         String insertAddressQuery = "INSERT INTO Address (employee_id, house_no, area, city, country) VALUES (?, ?, ?, ?, ?)";
@@ -295,11 +303,11 @@ public class Assessment2 {
 
                         // Insert department and role/position data
                         try (PreparedStatement deptStmt = connection.prepareStatement(insertEmployeeDepartmentQuery)) {
-                            for (int i = 0; i < departmentIds.size(); i++) {
+                            for (Department dept : departments) {
                                 deptStmt.setInt(1, employeeId);
-                                deptStmt.setInt(2, departmentIds.get(i));
-                                deptStmt.setString(3, roles.get(i));
-                                deptStmt.setString(4, heads.get(i));
+                                deptStmt.setInt(2, dept.getId());
+                                deptStmt.setString(3, dept.getRole());
+                                deptStmt.setString(4, dept.getHead());
                                 deptStmt.addBatch();
                             }
                             deptStmt.executeBatch();
@@ -325,7 +333,8 @@ public class Assessment2 {
         }
     }
 
-// Fetch employees from the database and display their information
+
+    // Fetch employees from the database and display their information
     public static void fetchEmployeesFromDatabase() {
         String query = "SELECT * FROM Employee";
         try (Connection connection = DatabaseUtil.getConnection();
