@@ -5,11 +5,16 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 public class DatabaseUtil {
-    private static final String URL = "jdbc:mysql://localhost:3306/EmployeeDB";
-    private static final String USER = "root";
-    private static final String PASSWORD = "Dsaq@123"; // Replace with your MySQL root password
-
     public static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(URL, USER, PASSWORD);
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            return DriverManager.getConnection("jdbc:mysql://localhost:3306/EmployeeDB", "root", "Dsaq@123");
+        } catch (ClassNotFoundException | SQLException e) {
+            throw new SQLException("Error connecting to the database", e);
+        }
     }
 }
+
+
+
+// Final cannot be reassigned after inyiallization- cannot override - provides immutability

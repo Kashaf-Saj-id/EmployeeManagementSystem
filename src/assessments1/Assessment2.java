@@ -1,11 +1,14 @@
 package assessments1;
 
-import java.io.FileInputStream;     //To read the property files
-import java.io.IOException;         //To handle input and output exceptions
-import java.sql.*;                  //for database operations
-import java.time.LocalDate;         //To handle dates
-import java.util.Properties;         //to load and use rules from property files
-import java.util.Scanner;             //for user input
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.sql.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
+import java.util.Scanner;
 
 public class Assessment2 {
     private static Properties properties = new Properties();
@@ -21,327 +24,372 @@ public class Assessment2 {
             return;
         }
 
-        Employee e1 = new Employee();
+        Employee employee = new Employee();
         Scanner scanner = new Scanner(System.in);
 
+        // Get employee details (same as before)
+        employee.setName(getValidatedString(scanner, "Enter your name: "));
+        employee.setEmail(getValidatedEmail(scanner, "Enter your email: "));
+        employee.setPhone(getValidatedPhone(scanner, "Enter your phone number: "));
+        employee.setDob(getValidatedDateOfBirth(scanner, "Enter your Date of Birth (yyyy-MM-dd): "));
+        employee.setSalary(getValidatedDouble(scanner, "Enter your salary: "));
 
-        String name = getValidatedString(scanner, "Enter Your name: ");
-        e1.setName(name);
+        // Get multiple addresses (same as before)
+        List<Address> addresses = new ArrayList<>();
+        System.out.println("\nEnter addresses for the employee (minimum one address required):");
+        boolean addMoreAddresses = true;
+        while (addMoreAddresses) {
+            Address address = new Address();
+            address.setHouseNo(getValidatedInt(scanner, "Enter house number: "));
+            address.setArea(getValidatedString(scanner, "Enter area/town/society: "));
+            address.setCity(getValidatedString(scanner, "Enter city: "));
+            address.setCountry(getValidatedString(scanner, "Enter country: "));
+            addresses.add(address);
 
-        String email = getValidatedEmail(scanner, "Enter Your email: ");
-        e1.setEmail(email);
+            // Handle "yes" or "no" input validation
+            boolean validChoice = false;
+            while (!validChoice) {
+                System.out.print("Do you want to add another address? (yes/no): ");
+                String choice = scanner.nextLine().trim().toLowerCase();
+                if (choice.equals("yes")) {
+                    addMoreAddresses = true;
+                    validChoice = true;
+                } else if (choice.equals("no")) {
+                    addMoreAddresses = false;
+                    validChoice = true;
+                } else {
+                    System.out.println("Invalid option! Please enter 'yes' or 'no'.");
+                }
+            }
+        }
+        employee.setAddresses(addresses);
 
-        String phone = getValidatedPhone(scanner, "Enter Your phone number: ");
-        e1.setPhone(phone);
+        // Get departments and role/position for employee
+        List<Integer> departmentIds = new ArrayList<>();
+        List<String> roles = new ArrayList<>();
+        List<String> heads = new ArrayList<>();
+        boolean addMoreDepartments = true;
 
-        String dateOfBirth = getValidatedDateOfBirth(scanner, "Enter Your Date of Birth as yyyy-MM-dd ");
-        e1.setDob(dateOfBirth);
+        // Fetch available department IDs
+        List<Integer> validDepartmentIds = showDepartments();
 
-        double salary = getValidatedDouble(scanner, "Enter Your salary: ");
-        e1.setSalary(salary);
+        while (addMoreDepartments) {
+            // Ask user to select a valid department
+            int departmentId = getValidatedDepartmentId(scanner, "Enter the department ID for the employee: ", validDepartmentIds);
+            String role = getValidatedString(scanner, "Enter your role in this department: ");
+            String head = getValidatedString(scanner, "Enter the head of this department: ");
 
-        int houseNo = getValidatedInt(scanner, "Enter Your house no.: ");
-        e1.getAddress().setHouseNo(houseNo);
+            departmentIds.add(departmentId);
+            roles.add(role);
+            heads.add(head);
 
-        String area = getValidatedString(scanner, "Enter Your Area/Town/Society: ");
-        e1.getAddress().setArea(area);
+            // Ask if the user wants to add another department
+            boolean validChoice = false;
+            while (!validChoice) {
+                System.out.print("Do you work in another department? (yes/no): ");
+                String choice = scanner.nextLine().trim().toLowerCase();
+                if (choice.equals("yes")) {
+                    validChoice = true;
+                } else if (choice.equals("no")) {
+                    addMoreDepartments = false;
+                    validChoice = true;
+                } else {
+                    System.out.println("Invalid option! Please enter 'yes' or 'no'.");
+                }
+            }
+        }
 
-        String city = getValidatedString(scanner, "Enter Your City: ");
-        e1.getAddress().setCity(city);
+        // Save employee with department assignments, including role and head
+        saveEmployeeToDatabase(employee, departmentIds, roles, heads, addresses);
 
-        String country = getValidatedString(scanner, "Enter Your Country: ");
-        e1.getAddress().setCountry(country);
-
-        showDepartments();
-
-
-        int departmentId = getValidatedDepartmentId(scanner, "Enter the department ID for the employee: ");
-
-
-        saveEmployeeToDatabase(e1, departmentId);
-
+        // Fetch and display all employees with their addresses (same as before)
         System.out.println("\nFetching all employees from the database:");
         fetchEmployeesFromDatabase();
     }
 
 
 
-    // Validation Methods
-
-    public static int getValidatedInt(Scanner scanner, String prompt) {
-        int result = 0;
-        boolean valid = false;
-        while (!valid) {
-            System.out.println(prompt);
-            String input = scanner.nextLine();
-            if (input.isEmpty()) {
-                System.out.println("Input cannot be empty. Please try again!");
-                continue;
-            }
-            try {
-                result = Integer.parseInt(input);
-                valid = true;
-            } catch (NumberFormatException e) {
-                System.out.println("Invalid input! Please enter a valid integer.");
-            }
-        }
-        return result;
-    }
-
-    public static double getValidatedDouble(Scanner scanner, String prompt) {
-        double result = 0;
-        boolean valid = false;
-        while (!valid) {
-            System.out.println(prompt);
-            String input = scanner.nextLine().trim();
-            if (input.isEmpty()) {
-                System.out.println("Input cannot be empty. Please try again!");
-                continue;
-            }
-            try {
-                result = Double.parseDouble(input);
-                valid = true;
-            } catch (NumberFormatException e) {
-                System.out.println("Invalid input! Please enter a valid number.");
-            }
-        }
-        return result;
-    }
-
-    public static String getValidatedString(Scanner scanner, String prompt) {
-        String result = "";
-        boolean valid = false;
-        while (!valid) {
-            System.out.println(prompt);
-            result = scanner.nextLine().trim();
-            if (result.isEmpty()) {
-                System.out.println("Input cannot be empty. Please try again!");
-            } else {
-                valid = true;
-            }
-        }
-        return result;
-    }
-
-    public static String getValidatedEmail(Scanner scanner, String prompt) {
-        String email = "";
-        boolean valid = false;
-        String emailRegex = properties.getProperty("email.regex");
-        while (!valid) {
-            System.out.println(prompt);
-            email = scanner.nextLine().trim();
-            if (email.matches(emailRegex)) {
-                valid = true;
-            } else {
-                System.out.println("Invalid email! Please ensure it matches the format specified.");
-            }
-        }
-        return email;
-    }
-
-    public static String getValidatedPhone(Scanner scanner, String prompt) {
-        String phone = "";
-        boolean valid = false;
-        String phoneRegex = properties.getProperty("phone.regex");
-        while (!valid) {
-            System.out.println(prompt);
-            phone = scanner.nextLine().trim();
-            if (phone.matches(phoneRegex)) {
-                valid = true;
-            } else {
-                System.out.println("Invalid phone number! Make sure it matches the format specified.");
-            }
-        }
-        return phone;
-    }
-
-
-    public static String getValidatedDateOfBirth(Scanner scanner, String prompt) {
-        String dateOfBirth = "";
-        boolean valid = false;
-
-        String dobRegex = properties.getProperty("dob.regex"); // Ensure this regex is ^\\d{4}-\\d{2}-\\d{2}$
-        int minYear = Integer.parseInt(properties.getProperty("min.year"));
-        int maxYear = Integer.parseInt(properties.getProperty("max.year"));
-
-        while (!valid) {
-            System.out.println(prompt + " (format: yyyy-MM-dd)");
-            dateOfBirth = scanner.nextLine().trim();
-
-            if (dateOfBirth.matches(dobRegex)) {
-                try {
-                    // Parse the date to check its validity
-                    LocalDate parsedDate = LocalDate.parse(dateOfBirth);
-                    int year = parsedDate.getYear();
-
-                    // Check if the year is within the specified range
-                    if (year < minYear || year > maxYear) {
-                        System.out.println("Year must be between " + minYear + " and " + maxYear + ". Please try again!");
-                    } else {
-                        valid = true; // Date is valid and within the year range
-                    }
-                } catch (Exception e) {
-                    System.out.println("Invalid date! Please ensure it's a valid calendar date.");
-                }
-            } else {
-                System.out.println("Invalid date format! Please use yyyy-MM-dd.");
-            }
-        }
-        return dateOfBirth;
-    }
-
-
-
-
-    public static int getValidatedDepartmentId(Scanner scanner, String prompt) {
-        int[] departmentIds = new int[10];     //To store departments id fetched from database
-        String[] departmentNames = new String[10];
-        int index = 0;               //To track how many departments are fetched
-
+    // Show departments to the user
+    public static List<Integer> showDepartments() {
+        List<Integer> departmentIds = new ArrayList<>();
         String query = "SELECT id, name FROM Department ORDER BY id ASC";
-        try (Connection connection = DatabaseUtil.getConnection();      // Opens the connection
-             Statement statement = connection.createStatement();      // Used to execute SQL query
-             ResultSet resultSet = statement.executeQuery(query)) {      //Contains the result of executed query
+        try (Connection connection = DatabaseUtil.getConnection();
+             Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
 
-            System.out.println("Available Departments:");
-            while (resultSet.next()) {
-                departmentIds[index] = resultSet.getInt("id");
-                departmentNames[index] = resultSet.getString("name");
-                System.out.println(departmentIds[index] + ". " + departmentNames[index]);
-                index++;
+            System.out.println("\nAvailable Departments:");
+            int count = 1;  // To display department number as 1, 2, 3, etc.
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String name = rs.getString("name");
+                departmentIds.add(id);  // Add department ID to the list
+                System.out.println(count + ". " + name);  // Display department number followed by name
+                count++;
             }
         } catch (SQLException e) {
-            System.out.println("Error fetching department IDs: " + e.getMessage());
-            return -1; // Exit if there was an error
+            System.out.println("Error fetching departments: " + e.getMessage());
         }
+        return departmentIds;  // Return the list of department IDs
+    }
 
-        // Validate user input
-        int departmentId = 0;
+
+
+    // Get validated department ID from the user
+    public static int getValidatedDepartmentId(Scanner scanner, String prompt, List<Integer> validDepartmentIds) {
+        int departmentId = -1;
         boolean valid = false;
         while (!valid) {
-            System.out.println(prompt);
+            System.out.print(prompt);
             try {
                 departmentId = Integer.parseInt(scanner.nextLine().trim());
 
-                for (int i = 0; i < index; i++) {
-                    if (departmentIds[i] == departmentId) {
-                        valid = true;
-                        System.out.println("Selected Department: " + departmentNames[i]);
-                        break;
-                    }
+                // Check if the entered department ID is valid
+                if (!validDepartmentIds.contains(departmentId)) {
+                    System.out.println("Invalid department ID. Please enter a valid department ID.");
+                } else {
+                    valid = true;  // Valid department ID
                 }
-                if (!valid) {
-                    System.out.println("Invalid department ID. Please choose a valid ID from the list.");
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input. Please enter a valid department ID.");
+            }
+        }
+        return departmentId;
+    }
+
+
+    public static int getValidatedInt(Scanner scanner, String prompt) {
+        int value = -1;
+        boolean valid = false;
+        while (!valid) {
+            System.out.print(prompt);
+            try {
+                value = Integer.parseInt(scanner.nextLine().trim());
+                if (value <= 0) {
+                    System.out.println("Invalid input. Please enter a positive integer.");
+                } else {
+                    valid = true;
                 }
             } catch (NumberFormatException e) {
                 System.out.println("Invalid input. Please enter a valid integer.");
             }
         }
-
-        return departmentId;
+        return value;
     }
 
+    // Utility method to get a validated string input from the user
+    public static String getValidatedString(Scanner scanner, String prompt) {
+        String input = "";
+        while (input.trim().isEmpty()) {
+            System.out.print(prompt);
+            input = scanner.nextLine().trim();
+        }
+        return input;
+    }
 
-
-    public static void showDepartments() {
-        String query = "SELECT id, name FROM Department ORDER BY id ASC";
-
-        try (Connection connection = DatabaseUtil.getConnection();
-             Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(query)) {
-
-            System.out.println("Available Departments:");
-            while (resultSet.next()) {
-                int departmentId = resultSet.getInt("id");
-                String departmentName = resultSet.getString("name");
-                System.out.println(departmentId + ". " + departmentName);
+    // Utility method to get validated email input from the user
+    public static String getValidatedEmail(Scanner scanner, String prompt) {
+        String email = "";
+        String emailRegex = properties.getProperty("email.regex");
+        while (!email.matches(emailRegex)) {
+            System.out.print(prompt);
+            email = scanner.nextLine().trim();
+            if (!email.matches(emailRegex)) {
+                System.out.println("Invalid email format. Please try again.");
             }
-        } catch (SQLException e) {
-            System.out.println("Error fetching departments: " + e.getMessage());
+        }
+        return email;
+    }
+
+    // Utility method to get validated phone number input
+    public static String getValidatedPhone(Scanner scanner, String prompt) {
+        String phone = "";
+        String phoneRegex = properties.getProperty("phone.regex");
+        while (!phone.matches(phoneRegex)) {
+            System.out.print(prompt);
+            phone = scanner.nextLine().trim();
+            if (!phone.matches(phoneRegex)) {
+                System.out.println("Invalid phone number. Please try again.");
+            }
+        }
+        return phone;
+    }
+
+    // Utility method to get validated date of birth input
+
+
+    public static String getValidatedDateOfBirth(Scanner scanner, String prompt) {
+        String dob = "";
+        String dobRegex = properties.getProperty("dob.regex");  // This regex can still be used for format validation
+        int minYear = Integer.parseInt(properties.getProperty("min.year"));
+        int maxYear = Integer.parseInt(properties.getProperty("max.year"));
+
+        while (true) {
+            System.out.print(prompt);
+            dob = scanner.nextLine().trim();
+
+            // Check if the format matches the required regex
+            if (!dob.matches(dobRegex)) {
+                System.out.println("Invalid Date of Birth format. Please try again.");
+                continue;
+            }
+
+            try {
+                // Parse the date string to a LocalDate object
+                LocalDate dateOfBirth = LocalDate.parse(dob);
+
+                // Check if the year is within the valid range
+                if (dateOfBirth.getYear() < minYear || dateOfBirth.getYear() > maxYear) {
+                    System.out.println("Year must be between " + minYear + " and " + maxYear + ". Please try again.");
+                } else {
+                    // If everything is valid, break out of the loop
+                    return dob;
+                }
+            } catch (DateTimeParseException e) {
+                System.out.println("Invalid Date of Birth. Please enter a valid date (yyyy-MM-dd).");
+            }
         }
     }
 
-    public static void saveEmployeeToDatabase(Employee employee, int departmentId) {
-        String insertEmployeeQuery = "INSERT INTO Employee (name, email, phone, dob, salary, department_id) VALUES (?, ?, ?, ?, ?, ?)";
+
+    // Utility method to get validated double input (e.g., salary)
+    public static double getValidatedDouble(Scanner scanner, String prompt) {
+        double salary = 0;
+        boolean valid = false;
+        while (!valid) {
+            System.out.print(prompt);
+            try {
+                salary = Double.parseDouble(scanner.nextLine().trim());
+                if (salary <= 0) {
+                    System.out.println("Invalid salary. Please enter a valid amount.");
+                } else {
+                    valid = true;
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input. Please enter a valid number for salary.");
+            }
+        }
+        return salary;
+    }
+
+    // Save employee to the database (including role and head in EmployeeDepartment)
+    public static void saveEmployeeToDatabase(Employee employee, List<Integer> departmentIds, List<String> roles, List<String> heads, List<Address> addresses) {
+        String insertEmployeeQuery = "INSERT INTO Employee (name, email, phone, dob, salary) VALUES (?, ?, ?, ?, ?)";
+        String insertEmployeeDepartmentQuery = "INSERT INTO EmployeeDepartment (employee_id, department_id, role, head) VALUES (?, ?, ?, ?)";
         String insertAddressQuery = "INSERT INTO Address (employee_id, house_no, area, city, country) VALUES (?, ?, ?, ?, ?)";
 
-        try (Connection connection = DatabaseUtil.getConnection()) {
-            try (PreparedStatement employeeStmt = connection.prepareStatement(insertEmployeeQuery, Statement.RETURN_GENERATED_KEYS)) {
-                employeeStmt.setString(1, employee.getName());
-                employeeStmt.setString(2, employee.getEmail());
-                employeeStmt.setString(3, employee.getPhone());
-                employeeStmt.setDate(4, java.sql.Date.valueOf(employee.getDob())); // Directly saving as SQL date
-                employeeStmt.setDouble(5, employee.getSalary());
-                employeeStmt.setInt(6, departmentId); // Save department_id directly in Employee table
-                employeeStmt.executeUpdate();   // execute statement to add employee to employee table
+        try (Connection connection = DatabaseUtil.getConnection();
+             PreparedStatement employeeStmt = connection.prepareStatement(insertEmployeeQuery, Statement.RETURN_GENERATED_KEYS)) {
 
-                ResultSet generatedKeys = employeeStmt.getGeneratedKeys();
-                if (generatedKeys.next()) {
-                    int employeeId = generatedKeys.getInt(1);
+            // Insert employee data
+            employeeStmt.setString(1, employee.getName());
+            employeeStmt.setString(2, employee.getEmail());
+            employeeStmt.setString(3, employee.getPhone());
+            employeeStmt.setString(4, employee.getDob());
+            employeeStmt.setDouble(5, employee.getSalary());
 
-                    try (PreparedStatement addressStmt = connection.prepareStatement(insertAddressQuery)) {
-                        addressStmt.setInt(1, employeeId);
-                        addressStmt.setInt(2, employee.getAddress().getHouseNo());
-                        addressStmt.setString(3, employee.getAddress().getArea());
-                        addressStmt.setString(4, employee.getAddress().getCity());
-                        addressStmt.setString(5, employee.getAddress().getCountry());
-                        addressStmt.executeUpdate();
+            int affectedRows = employeeStmt.executeUpdate();
+            if (affectedRows > 0) {
+                try (ResultSet generatedKeys = employeeStmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        int employeeId = generatedKeys.getInt(1);
+
+                        // Insert department and role/position data
+                        try (PreparedStatement deptStmt = connection.prepareStatement(insertEmployeeDepartmentQuery)) {
+                            for (int i = 0; i < departmentIds.size(); i++) {
+                                deptStmt.setInt(1, employeeId);
+                                deptStmt.setInt(2, departmentIds.get(i));
+                                deptStmt.setString(3, roles.get(i));
+                                deptStmt.setString(4, heads.get(i));
+                                deptStmt.addBatch();
+                            }
+                            deptStmt.executeBatch();
+                        }
+
+                        // Insert address data for the employee
+                        try (PreparedStatement addressStmt = connection.prepareStatement(insertAddressQuery)) {
+                            for (Address address : addresses) {
+                                addressStmt.setInt(1, employeeId);  // Link the address to the employee
+                                addressStmt.setInt(2, address.getHouseNo());
+                                addressStmt.setString(3, address.getArea());
+                                addressStmt.setString(4, address.getCity());
+                                addressStmt.setString(5, address.getCountry());
+                                addressStmt.addBatch();
+                            }
+                            addressStmt.executeBatch();  // Insert all addresses in batch
+                        }
                     }
                 }
             }
         } catch (SQLException e) {
-            System.out.println("Error saving employee to database: " + e.getMessage());
+            System.out.println("Error saving employee data: " + e.getMessage());
         }
     }
 
-
-
+// Fetch employees from the database and display their information
     public static void fetchEmployeesFromDatabase() {
-        String query = """
-    SELECT e.id, e.name, e.email, e.phone, e.dob, e.salary,
-           a.house_no, a.area, a.city, a.country, d.name AS department
-    FROM Employee e
-    JOIN Address a ON e.id = a.employee_id
-    JOIN Department d ON e.department_id = d.id
-    ORDER BY e.id ASC;
-    """;
-
+        String query = "SELECT * FROM Employee";
         try (Connection connection = DatabaseUtil.getConnection();
-             Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(query)) {
+             Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
 
-            System.out.println("Fetching all employees from the database:");
-            while (resultSet.next()) {
-                int id = resultSet.getInt("id");
-                String name = resultSet.getString("name");
-                String email = resultSet.getString("email");
-                String phone = resultSet.getString("phone");
-                String dob = resultSet.getString("dob");
-                double salary = resultSet.getDouble("salary");
-                int houseNo = resultSet.getInt("house_no");
-                String area = resultSet.getString("area");
-                String city = resultSet.getString("city");
-                String country = resultSet.getString("country");
-                String department = resultSet.getString("department");
+            while (rs.next()) {
+                int employeeId = rs.getInt("id");
+                String name = rs.getString("name");
+                String email = rs.getString("email");
+                String phone = rs.getString("phone");
+                String dob = rs.getString("dob");
+                double salary = rs.getDouble("salary");
 
-                System.out.printf("""
-            Employee ID: %d
-            Name: %s
-            Email: %s
-            Phone: %s
-            DOB: %s
-            Salary: %.2f
-            Address: House no %d, %s, %s, %s
-            Department: %s
-            -----------------------------------
-            """, id, name, email, phone, dob, salary, houseNo, area, city, country, department);
+                // Display employee details in separate lines
+                System.out.println("Employee ID: " + employeeId);
+                System.out.println("Name: " + name);
+                System.out.println("Email: " + email);
+                System.out.println("Phone: " + phone);
+                System.out.println("Date of Birth: " + dob);
+                System.out.println("Salary: " + salary);
+
+                // Fetch and display employee addresses
+                String addressQuery = "SELECT house_no, area, city, country FROM Address WHERE employee_id = ?";
+                try (PreparedStatement addressStmt = connection.prepareStatement(addressQuery)) {
+                    addressStmt.setInt(1, employeeId);
+                    try (ResultSet addressRs = addressStmt.executeQuery()) {
+                        while (addressRs.next()) {
+                            int houseNo = addressRs.getInt("house_no");
+                            String area = addressRs.getString("area");
+                            String city = addressRs.getString("city");
+                            String country = addressRs.getString("country");
+
+                            System.out.println("Address:");
+                            System.out.println("  House No: " + houseNo);
+                            System.out.println("  Area: " + area);
+                            System.out.println("  City: " + city);
+                            System.out.println("  Country: " + country);
+                            System.out.println();  // Add a blank line after each address
+                        }
+                    }
+                }
+
+                // Display department information in a separate block
+                String deptQuery = "SELECT d.name, ed.role, ed.head FROM Department d JOIN EmployeeDepartment ed ON d.id = ed.department_id WHERE ed.employee_id = ?";
+                try (PreparedStatement deptStmt = connection.prepareStatement(deptQuery)) {
+                    deptStmt.setInt(1, employeeId);
+                    try (ResultSet deptRs = deptStmt.executeQuery()) {
+                        while (deptRs.next()) {
+                            String deptName = deptRs.getString("name");
+                            String role = deptRs.getString("role");
+                            String head = deptRs.getString("head");
+
+                            System.out.println("Department: " + deptName);
+                            System.out.println("Role: " + role);
+                            System.out.println("Head: " + head);
+                            System.out.println();  // Add a blank line between departments
+                        }
+                    }
+                }
             }
         } catch (SQLException e) {
-            System.out.println("Error fetching employees from the database: " + e.getMessage());
+            System.out.println("Error fetching employee data: " + e.getMessage());
         }
     }
 
 }
-
-
-

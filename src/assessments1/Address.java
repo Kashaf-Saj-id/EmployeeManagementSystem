@@ -10,28 +10,28 @@ public class Address {
         return houseNo;
     }
 
-    public String getArea() {
-        return area;
-    }
-
-    public String getCity() {
-        return city;
-    }
-
-    public String getCountry() {
-        return country;
-    }
-
     public void setHouseNo(int houseNo) {
         this.houseNo = houseNo;
+    }
+
+    public String getArea() {
+        return area;
     }
 
     public void setArea(String area) {
         this.area = area;
     }
 
+    public String getCity() {
+        return city;
+    }
+
     public void setCity(String city) {
         this.city = city;
+    }
+
+    public String getCountry() {
+        return country;
     }
 
     public void setCountry(String country) {
